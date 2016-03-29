@@ -1,0 +1,19 @@
+smartfix_review:
+    resource: "@SmartfixBundle/Resources/config/routing/review.yml"
+    prefix:   /review
+
+smartfix_support:
+    resource: "@SmartfixBundle/Resources/config/routing/support.yml"
+    prefix:   /support
+
+smartfix_service:
+    resource: "@SmartfixBundle/Resources/config/routing/service.yml"
+    prefix:   /service
+
+smartfix_client:
+    resource: "@SmartfixBundle/Resources/config/routing/client.yml"
+    prefix:   /client
+
+smartfix_homepage:
+    path:     /hello/{name}
+    defaults: { _controller: SmartfixBundle:Default:index }

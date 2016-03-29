@@ -1,0 +1,42 @@
+SF\SmartfixBundle\Entity\Client:
+    type: entity
+    table: null
+    repositoryClass: SF\SmartfixBundle\Entity\ClientRepository
+    id:
+        id:
+            type: integer
+            id: true
+            generator:
+                strategy: AUTO
+    fields:
+        firstName:
+            type: string
+            length: 255
+            column: first_name
+        lastName:
+            type: string
+            length: 255
+            column: last_name
+        avatar:
+            type: string
+            length: 255
+        email:
+            type: string
+            length: 255
+        password:
+            type: string
+            length: 255
+        mobile:
+            type: string
+            length: '50'
+        address:
+            type: string
+            length: 255
+        creditCart:
+            type: string
+            length: 255
+            column: credit_cart
+        dateReeate:
+            type: datetime
+            column: date_reeate
+    lifecycleCallbacks: {  }

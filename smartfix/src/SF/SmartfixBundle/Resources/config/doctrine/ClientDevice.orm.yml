@@ -1,0 +1,28 @@
+SF\SmartfixBundle\Entity\ClientDevice:
+    type: entity
+    table: null
+    repositoryClass: SF\SmartfixBundle\Entity\ClientDeviceRepository
+    id:
+        id:
+            type: integer
+            id: true
+            generator:
+                strategy: AUTO
+    fields:
+        clientId:
+            type: integer
+        deviceId:
+            type: string
+            length: 255
+        operatingSystem:
+            type: string
+            length: 255
+        deviceToken:
+            type: string
+            length: 255
+        client:
+            type: string
+            length: 255
+        histories:
+            type: integer
+    lifecycleCallbacks: {  }

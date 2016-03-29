@@ -1,0 +1,30 @@
+support:
+    path:     /
+    defaults: { _controller: "SmartfixBundle:Support:index" }
+
+support_show:
+    path:     /{id}/show
+    defaults: { _controller: "SmartfixBundle:Support:show" }
+
+support_new:
+    path:     /new
+    defaults: { _controller: "SmartfixBundle:Support:new" }
+
+support_create:
+    path:     /create
+    defaults: { _controller: "SmartfixBundle:Support:create" }
+    requirements: { _method: post }
+
+support_edit:
+    path:     /{id}/edit
+    defaults: { _controller: "SmartfixBundle:Support:edit" }
+
+support_update:
+    path:     /{id}/update
+    defaults: { _controller: "SmartfixBundle:Support:update" }
+    requirements: { _method: post|put }
+
+support_delete:
+    path:     /{id}/delete
+    defaults: { _controller: "SmartfixBundle:Support:delete" }
+    requirements: { _method: post|delete }

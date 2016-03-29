@@ -1,0 +1,63 @@
+{% extends '::base.html.twig' %}
+
+{% block body -%}
+    <h1>Support list</h1>
+
+    <table class="records_list">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Number</th>
+                <th>Serviceid</th>
+                <th>Streetname</th>
+                <th>Postcost</th>
+                <th>City</th>
+                <th>Infomaition</th>
+                <th>Date</th>
+                <th>Timeslot</th>
+                <th>Datecreate</th>
+                <th>Ccnumber</th>
+                <th>Exp</th>
+                <th>Num</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for entity in entities %}
+            <tr>
+                <td><a href="{{ path('support_show', { 'id': entity.id }) }}">{{ entity.id }}</a></td>
+                <td>{{ entity.number }}</td>
+                <td>{{ entity.serviceId }}</td>
+                <td>{{ entity.streetName }}</td>
+                <td>{{ entity.postCost }}</td>
+                <td>{{ entity.city }}</td>
+                <td>{{ entity.infomaition }}</td>
+                <td>{% if entity.date %}{{ entity.date|date('Y-m-d H:i:s') }}{% endif %}</td>
+                <td>{{ entity.timeSlot }}</td>
+                <td>{% if entity.dateCreate %}{{ entity.dateCreate|date('Y-m-d H:i:s') }}{% endif %}</td>
+                <td>{{ entity.ccNumber }}</td>
+                <td>{% if entity.exp %}{{ entity.exp|date('Y-m-d H:i:s') }}{% endif %}</td>
+                <td>{{ entity.num }}</td>
+                <td>
+                <ul>
+                    <li>
+                        <a href="{{ path('support_show', { 'id': entity.id }) }}">show</a>
+                    </li>
+                    <li>
+                        <a href="{{ path('support_edit', { 'id': entity.id }) }}">edit</a>
+                    </li>
+                </ul>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+        <ul>
+        <li>
+            <a href="{{ path('support_new') }}">
+                Create a new entry
+            </a>
+        </li>
+    </ul>
+    {% endblock %}

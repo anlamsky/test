@@ -1,0 +1,50 @@
+SF\SmartfixBundle\Entity\Support:
+    type: entity
+    table: null
+    repositoryClass: SF\SmartfixBundle\Entity\SupportRepository
+    id:
+        id:
+            type: integer
+            id: true
+            generator:
+                strategy: AUTO
+    fields:
+        number:
+            type: integer
+        serviceId:
+            type: integer
+            column: service_id
+        streetName:
+            type: string
+            length: 255
+            column: street_name
+        postCost:
+            type: integer
+            column: post_cost
+        city:
+            type: string
+            length: 255
+        infomaition:
+            type: text
+        date:
+            type: date
+        timeSlot:
+            type: string
+            column: time_slot
+        status:
+            type: integer
+        dateCreate:
+            type: datetime
+            column: date_create
+        ccNumber:
+            type: string
+            length: 255
+            column: cc_number
+            null: yes
+        exp:
+            type: date
+            null: yes
+        num:
+            type: integer
+            null: yes
+    lifecycleCallbacks: {  }

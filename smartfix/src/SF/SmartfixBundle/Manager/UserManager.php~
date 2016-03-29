@@ -1,0 +1,1135 @@
+<?php
+
+namespace SM\AdminBundle\Manager;
+
+use SM\UserBundle\Entity\User;
+use SM\UserBundle\Entity\UserDevice;
+use Symfony\Component\HttpFoundation\Request;
+use SM\AdminBundle\Utilities\Utilities;
+use Symfony\Component\Form\Form;
+use SM\AdminBundle\Entity\StatisticUser;
+
+//use Doctrine\ORM\NoResultException;
+//use Doctrine\ORM\Mapping as ORM;
+
+/**
+ * User Manager
+ */
+class UserManager
+{
+
+    protected $em;
+    protected $container;
+    protected $translator;
+    protected $router;
+    protected $UserRepository;
+    protected $temp;
+    protected $data = array(
+        'status' => FALSE,
+        'message' => '',
+        'data' => array(),
+    );
+
+    /**
+     * Construct
+     *
+     * @param type $em
+     * @param type $container
+     * @param type $translator
+     * @param type $router
+     */
+    public function __construct($em, $container, $translator, $router)
+    {
+        $this->em = $em;
+        $this->container = $container;
+        $this->translator = $translator;
+        $this->router = $router;
+        $this->UserRepository = $this->em->getRepository("SMUserBundle:User");
+    }
+
+    /**
+     * Return temp
+     *
+     * @return type
+     */
+    public function getTemp()
+    {
+        return $this->temp;
+    }
+
+    /**
+     * Return login token, this function build login token and return
+     *
+     * @param type $username
+     * @param type $userID
+     * @param type $gid
+     * @param type $role
+     *
+     * @return type
+     */
+    public function getLoginToken($username, $userID, $gid = '', $userStatistic, $role = 'ROLE_API')
+    {
+        $loginToken = base64_encode(implode("[___]", array(
+            $userID,
+            $gid,
+            $username,
+            $role,
+            $userStatistic
+        )));
+
+        return $loginToken;
+    }
+
+    /**
+     * Create encode password
+     *
+     * @param \SM\UserBundle\Entity\User $entity
+     * @param string                     $password
+     *
+     * @return type
+     */
+    private function createEncodePassword(User $entity, $password)
+    {
+        $factory = $this->container->get('security.encoder_factory');
+        $encoder = $factory->getEncoder($entity);
+        $password = $encoder->encodePassword($password, $entity->getSalt());
+
+        return $password;
+    }
+
+    /**
+     * Send mail function
+     *
+     * @param type $email
+     * @param type $password
+     */
+    public function sendPasswordMail($email, $password)
+    {
+        $trans = $this->container->get('translator');
+        $content = $trans->trans('user.forgotpass.email.template',
+            array('%username%' => $email, '%password%' => $password));
+
+        $subject = $this->container->getParameter('email_forgot_password_title');
+        $from = $this->container->getParameter('email_default_from');
+        $this->sendMail($from, $email, $subject, $content);
+    }
+
+    /**
+     * Create user
+     *
+     * @param \SM\UserBundle\Entity\User $entity
+     * @param string                     $password
+     *
+     * @return \SM\UserBundle\Entity\User
+     */
+    public function createUser(User $entity, $password)
+    {
+        $password = $this->createEncodePassword($entity, $password);
+        $entity->setPassword($password);
+        $this->em->persist($entity);
+        $this->em->flush();
+
+        return $entity;
+    }
+
+    /**
+     * Create User With Command Line
+     *
+     * @param string $username
+     * @param string $password
+     * @param string $email
+     *
+     * @return UserId
+     */
+    public function createUserCommandLine($username, $password, $email)
+    {
+        $entity = new User();
+        $entity->setAvatar('756d524187adf71055f83e1e8344f3114aff894c.jpeg')
+            ->setBirthday('1980-10-20')
+            ->setEmail($email)
+            ->setFirstname('Firstname')
+            ->setHeight(rand(1, 10))
+            ->setLastname('Lastname')
+            ->setSex(0)
+            ->setUsername($username)
+            ->setWeight(rand(50, 120))
+        ;
+
+        $password = $this->createEncodePassword($entity, $password);
+        $entity->setPassword($password);
+
+        $this->em->persist($entity);
+        $this->em->flush();
+
+        return $entity->getId();
+    }
+
+    /**
+     * Decode login token
+     *
+     * @param string $loginToken
+     *
+     * @return type
+     */
+    private function decodeLoginToken($loginToken)
+    {
+        $tokenData = base64_decode($loginToken);
+        $dataArr = explode('[___]', $tokenData);
+
+        return $dataArr;
+    }
+
+    /**
+     * Check is email exist
+     *
+     * @param string $email
+     *
+     * @return boolean
+     */
+    public function isEmailExist($email)
+    {
+        $em = $this->em;
+        $repoUser = $em->getRepository('SMUserBundle:User');
+        $user = $repoUser->findOneBy(array('email' => $email));
+        if ($user) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Upload avatar for function process signup
+     *
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     *
+     * @return array
+     */
+    public function uploadAvatar(Request $request)
+    {
+        $trans = $this->get('translator');
+        $avatar = $request->files->get('avatar');
+        $image = '';
+        $uploadDir = $this->container->getParameter('avatar_dir');
+        $allowMimeType = $this->container->getParameter('image_extension');
+        $maxSize = $this->container->getParameter('max_size_image');
+        $options = array(
+            'create_thumb' => true,
+            'mimeTypes' => $allowMimeType,
+            'maxSize' => $maxSize,
+            'mimeTypesMessage' => $trans->trans('mess.invalid.minitype'),
+            'maxSizeMessage' => $trans->trans('mess.invalid.filesize')
+        );
+        $return = Utilities::uploadImage($avatar, $image, $uploadDir, $options);
+        if (!$return['success']) {
+            $returnData['success'] = false;
+            $returnData['message'] = $return['message'];
+            return $returnData;
+        }
+
+        return array('success' => true, 'file_path' => $image);
+    }
+
+    /**
+     * Get user data
+     *
+     * @param stting $loginToken
+     *
+     * @return array
+     */
+    public function getUserData($loginToken)
+    {
+        $data = $this->data;
+        $data['message'] = $this->translator->trans(
+            'Success', array(), 'messages'
+        );
+
+        $dataArr = $this->decodeLoginToken($loginToken);
+        $data['data']['user_id'] = $dataArr[0];
+        $data['data']['email'] = $dataArr[2];
+
+        $manager = $this->em;
+        $userRepo = $manager->getRepository('SMUserBundle:User');
+        /* @var $user \SM\UserBundle\Entity\User */
+        $user = $userRepo->find($data['data']['user_id']);
+
+        $data['data']['avatar'] = $user->getAvatar();
+        $data['data']['firstname'] = $user->getFirstname();
+        $data['data']['lastname'] = $user->getLastname();
+        $data['data']['birthday'] = $user->getBirthday();
+        $data['data']['weight'] = $user->getWeight();
+        $data['data']['height'] = $user->getHeight();
+        $data['data']['facebook_id'] = $user->getFacebookId();
+        $data['data']['sex'] = $user->getSex();
+
+        return $data;
+    }
+
+    /**
+     * Get user home data
+     *
+     * @param string $loginToken
+     *
+     * @return array
+     */
+    public function getUserHomeData($loginToken)
+    {
+        $data = $this->data;
+        $dataArr = $this->decodeLoginToken($loginToken);
+
+        $homeData = array(
+            'total_km' => 152,
+            'total_hour' => 12,
+            'total_session' => 5,
+            'first_time' => 10
+        );
+
+        $data['data'] = $homeData;
+
+        return $data;
+    }
+
+    /**
+     * Send mail
+     *
+     * @param string $from
+     * @param string $to
+     * @param string $subject
+     * @param string $content
+     */
+    public function sendMail($from, $to, $subject, $content)
+    {
+        $container = $this->container;
+
+        $message = \Swift_Message::newInstance()
+            ->setSubject($subject)
+            ->setFrom($from)
+            ->setTo($to)
+            ->setBody($content)
+        ;
+        $container->get('mailer')->send($message);
+    }
+
+    /**
+     * Process login for user
+     *
+     * @param type $username
+     * @param type $password
+     * @param type $deviceID
+     * @param type $deviceToken
+     *
+     * @return Array
+     */
+    public function userLogin($username, $password, $deviceID, $operationSystem, $deviceToken)
+    {
+        $data = $this->data;
+        $em = $this->em;
+
+        $repoUser = $em->getRepository('SMUserBundle:User');
+
+        $user = $repoUser->findOneBy(array('email' => $username));
+
+        if ($user === null) {
+            $data['message'] = $this->translator->trans(
+                'Email not exist', array(), 'messages'
+            );
+        } else {
+
+            $loginPasswordEncode = $this->createEncodePassword($user, $password);
+
+            if ($loginPasswordEncode === $user->getPassword()) {
+
+                $repoUserDevice = $em->getRepository('SMUserBundle:UserDevice');
+                $loginOnNewDevice = $repoUserDevice->isLoginOnNewDevice($user, $deviceID, $operationSystem, $deviceToken);
+
+                $data['status'] = TRUE;
+                $data['message'] = '';
+
+                $data['data'] = array(
+                    'login_token' => $this->getLoginToken(
+                        $user->getEmail(), $user->getId(), $user->getGid(), $user->getStatistic()->getId()
+                    ),
+                    'update_password' => $user->getIsForgotPassword(),
+                    'avatar' => $user->getWebPath(),
+                    'lastname' => $user->getLastname(),
+                    'firstname' => $user->getFirstname(),
+                    'new_device' => $loginOnNewDevice,
+                );
+            } else {
+                $data['message'] = $this->translator->trans(
+                    'Password incorrect', array(), 'messages'
+                );
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Process forgot password
+     *
+     * @param type $email
+     * @param type $deviceID
+     *
+     * @return type
+     */
+    public function processForgotPassword($email, $deviceID)
+    {
+        $data = $this->data;
+
+        //process forgot password
+        $em = $this->em;
+        $repoUser = $em->getRepository('SMUserBundle:User');
+        $user = $repoUser->findOneBy(array('email' => $email));
+
+        if ($user) {
+
+            // Random 100000 -> 999999 for new Password
+            $newPassword = rand(100000, 999999); //uniqid();
+            // Send Mail
+            $this->sendPasswordMail($email, $newPassword);
+
+            $user->setIsForgotPassword(true);
+            $newPasswordEncoded = $this->createEncodePassword($user, $newPassword);
+            $user->setPassword($newPasswordEncoded);
+
+            $em->persist($user);
+
+            try {
+                $em->flush();
+            } catch (Doctrine\DBAL\DBALException $ex) {
+                $data['message'] = $ex->getMessage();
+            }
+
+            $data['status'] = TRUE;
+            $data['message'] = $this->translator->trans(
+                'New password is send to your email', array(), 'messages'
+            );
+        } else {
+            $data['message'] = $this->translator->trans(
+                'Email is not exist!', array(), 'messages'
+            );
+        }
+
+        return $data;
+    }
+
+    /**
+     * Process update password
+     *
+     * @param type $oldPassword
+     * @param type $newPassword
+     * @param type $gid
+     *
+     * @return type
+     */
+    public function processUpdatePassword($oldPassword, $newPassword, $loginToken, $deviceId)
+    {
+
+        $data = $this->data;
+        $manager = $this->em;
+
+        $tokenArr = $this->decodeLoginToken($loginToken);
+        $userRepo = $manager->getRepository('SMUserBundle:User');
+
+        $user = $userRepo->findOneBy(array('email' => $tokenArr[2]));
+        if (!$user) {
+            $data['message'] = $this->translator->trans(
+                'Not Email : %email% !', array(
+                '%email%' => $tokenArr[2]
+                ), 'messages'
+            );
+        } else {
+
+            $passwordEncoded = $this->createEncodePassword($user, $oldPassword);
+            if ($passwordEncoded === $user->getPassword()) {
+                $newPasswordEncoded = $this->createEncodePassword($user, $newPassword);
+
+                $user->setPassword($newPasswordEncoded);
+                $user->setIsForgotPassword(FALSE);
+                $manager->persist($user);
+
+                try {
+                    $manager->flush();
+                    $data['status'] = TRUE;
+                    $data['message'] = $this->translator->trans(
+                        'Update password success', array(), 'messages'
+                    );
+                } catch (Doctrine\DBAL\DBALException $ex) {
+                    $data['message'] = $ex->getMessage();
+                }
+            } else {
+                $data['message'] = $this->translator->trans(
+                    'Old Password Incorrect!', array(), 'messages'
+                );
+            }
+        }
+        return $data;
+    }
+
+    /**
+     * Process signup data
+     *
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     * @param \Symfony\Component\Form\Form              $form
+     * @param \SM\UserBundle\Entity\User                $entity
+     *
+     * @return boolean|array
+     */
+    public function processSignup1(Request $request, Form $form, User $entity)
+    {
+        $form->handleRequest($request);
+
+        $email = $request->get('email');
+
+        //Check email is exist
+        if ($this->isEmailExist($email)) {
+            $returnData = array(
+                'status' => false,
+                'message' => 'Email exist',
+                'data' => array()
+            );
+
+            return $returnData;
+        }
+
+        //valid form and process
+        if ($form->isValid()) {
+
+            $returnData = array('message' => '', 'status' => false);
+
+            $fileResult = $this->uploadAvatar($request);
+            //check upload avatar is success
+            if ($fileResult['success']) {
+                $avatarPath = Utilities::getParameter('avatar_dir') . $fileResult['file_path'];
+                $entity->setAvatar($avatarPath);
+            } else {
+
+                return $fileResult;
+            }
+
+            //insert data to database
+            $password = $request->get('password');
+            $entity = $this->createUser($entity, $password);
+
+            $userDevice = new UserDevice();
+            $userDevice->setUserId($entity);
+            $userDevice->setDeviceId($request->get('device_id'));
+            $userDevice->setDeviceToken($request->get('device_token'));
+            $userDevice->setOperatingSystem($request->get('operating_system'));
+
+            $manager = $this->em;
+            $manager->persist($userDevice);
+            $manager->flush();
+
+            //build data return
+            $loginToken = $this->getLoginToken(
+                $email, $entity->getId(), $entity->getGid(), $entity->getStatistic()->getId()
+            );
+            $returnData = array(
+                'message' => 'Sigup complete', 'success' => true
+            );
+            $returnData['data']['login_token'] = $loginToken;
+            $returnData['data']['avatar_link'] = $entity->getAvatar();
+
+            return $returnData;
+        } else {
+            foreach ($form->all() as $child) {
+                if (!$child->isValid()) {
+                    $arr = $child->getErrors();
+                    $errors = array();
+                    $message = '';
+                    foreach ($arr as $error) {
+                        $errMsg = $child->getName() . ": ERROR: " . $error->getMessage();
+                        $errors[] = $errMsg;
+                        $message .= $errMsg;
+                    }
+                    break;
+                }
+            }
+
+            $returnData = array(
+                'status' => false,
+                'message' => $message,
+                'errors' => $errors
+            );
+
+            return $returnData;
+        }
+    }
+
+    /**
+     * Process signup data
+     *
+     * @param \SM\UserBundle\Entity\User    $entity
+     * @param Array                         $request
+     *
+     * @return array
+     */
+    public function processSignup($entity, $dataRequest)
+    {
+        $data = $this->data;
+        $em = $this->em;
+
+        //Check email is exist
+        if ($this->isEmailExist($entity->getEmail())) {
+            $data['message'] = $this->translator->trans(
+                '%email% is ready, please enter another email', array(
+                '%email%' => $entity->getEmail()
+                ), 'messages'
+            );
+        } else {
+            $entity->upload();
+            $password = $this->createEncodePassword($entity, $entity->getPassword());
+            $entity->setPassword($password);
+            $em->persist($entity);
+
+            $statistic = new StatisticUser();
+            $em->persist($statistic);
+
+            $entity->setStatistic($statistic);
+
+            $userDevice = new UserDevice();
+            $userDevice->setUserId($entity);
+            $userDevice->setDeviceId($dataRequest['device_id']);
+            $userDevice->setDeviceToken($dataRequest['device_token']);
+            $userDevice->setOperatingSystem($dataRequest['operating_system']);
+            $em->persist($userDevice);
+
+            $em->flush();
+
+            $content = $this->translator->trans(
+                '%email% was registered successfully', array(
+                '%email%' => $entity->getEmail()
+                ), 'messages'
+            );
+            $subject = $this->translator->trans(
+                '[AG2R] Register Successfully Email', array(), 'messages'
+            );
+            $from = $this->container->getParameter('email_default_from');
+            $this->sendMail($from, $entity->getEmail(), $subject, $content);
+
+            $data['status'] = TRUE;
+            $data['message'] = '';
+            $data['data'] = array(
+                'login_token' => $this->getLoginToken(
+                    $entity->getEmail(), $entity->getId(), $entity->getGid(), $entity->getStatistic()->getId()
+                ),
+                'update_password' => $entity->getIsForgotPassword(),
+                'avatar' => $entity->getWebPath(),
+                'lastname' => $entity->getLastname(),
+                'firstname' => $entity->getFirstname(),
+                'new_device' => TRUE,
+                'home' => $entity->getStatistic()->dataHomeUserInfo(),
+            );
+        }
+
+        return $data;
+    }
+
+    /**
+     * Get Information User
+     *
+     * @param type $loginToken
+     *
+     * @return string
+     */
+    public function userInfo($loginToken)
+    {
+        $data = $this->data;
+
+        $dataToken = $this->decodeLoginToken($loginToken);
+
+        if (isset($dataToken[3]) && $dataToken[3] === 'ROLE_API') {
+
+            $data['status'] = TRUE;
+            $userRepo = $this->em->getRepository('SMUserBundle:User');
+
+            $entity = $userRepo->find($dataToken[0]);
+
+            $data['data'] = $entity->getDataInfo();
+        } else {
+            $data['message'] = $this->translator->trans(
+                'User not Unauthorized', array(), 'messages'
+            );
+        }
+
+        return $data;
+    }
+
+    /**
+     * Get User Information in Home page.
+     *
+     * @param type $loginToken
+     *
+     * @return Array
+     */
+    public function userHome($loginToken)
+    {
+
+        $data = $this->data;
+
+        $dataToken = $this->decodeLoginToken($loginToken);
+
+        if (isset($dataToken[3]) && $dataToken[3] === 'ROLE_API') {
+
+
+            $repoUser = $this->em->getRepository('SMUserBundle:User');
+            $user = $repoUser->find($dataToken[0]);
+
+            if ($user) {
+                $repoEvent = $this->em->getRepository('SMAdminBundle:Event');
+
+                $data['status'] = TRUE;
+                $data['data'] = $user->getStatistic()->dataHomeUserInfo();
+                $data['data']['event'] = $repoEvent->getEvent();
+                $data['data']['weight'] = $user->getWeight();
+                $data['data']['height'] = $user->getHeight();
+            } else {
+                $data['message'] = $this->translator->trans(
+                    'User not True', array(), 'messages'
+                );
+            }
+        } else {
+            $data['message'] = $this->translator->trans(
+                'User hasn\'t Role for Action', array(), 'messages'
+            );
+        }
+
+        return $data;
+    }
+
+    /**
+     * Get user info
+     *
+     * @param String $loginToken
+     *
+     * @return Array
+     */
+    public function getUser($loginToken)
+    {
+        $dataToken = $this->decodeLoginToken($loginToken);
+        $repoUser = $this->em->getRepository('SMUserBundle:User');
+
+        return $repoUser->find($dataToken[0]);
+    }
+
+    /**
+     * Process update email
+     *
+     * @param String $newEmail
+     * @param String $loginToken
+     * @param String $deviceId
+     *
+     * @return Array
+     */
+    public function processUpdateEmail($newEmail, $loginToken, $deviceId)
+    {
+
+        $data = $this->data;
+        $manager = $this->em;
+
+        $tokenArr = $this->decodeLoginToken($loginToken);
+        $userRepo = $manager->getRepository('SMUserBundle:User');
+
+        if ($checkEmail = $userRepo->findOneBy(array('email' => $newEmail))) {
+            $data['message'] = $this->translator->trans(
+                        'The Email %email% exist', array(
+                            '%email%' => $newEmail,
+                        ), 'messages'
+                      );
+        } else {
+
+            $user = $userRepo->findOneBy(array('email' => $tokenArr[2]));
+
+            if (!$user) {
+                $data['message'] = $this->translator->trans(
+                        '%email% is ready, please enter another email', array(
+                            '%email%' => $tokenArr[2],
+                        ), 'messages'
+                    );
+                        ;
+            } else {
+
+                $user->setEmail($newEmail);
+                $user->setUsername($newEmail);
+                $manager->persist($user);
+
+                try {
+                    $manager->flush();
+                    $data['status'] = TRUE;
+                    $data['message'] = $this->translator->trans(
+                        'Update email success', array(), 'messages'
+                    );
+                    $data['data'] = array(
+                        'login_token' => $this->getLoginToken(
+                            $user->getEmail(), $user->getId(), $user->getGid(), $user->getStatistic()->getId()
+                        ),
+                    );
+                } catch (Doctrine\DBAL\DBALException $ex) {
+                    $data['message'] = $ex->getMessage();
+                }
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Process update User Info
+     *
+     * @param type $newDataUser
+     * @param type $loginToken
+     * @param type $deviceId
+     *
+     * @return type
+     */
+    public function processUpdateUserInfo($newDataUser, $loginToken, $deviceId)
+    {
+
+        $data = $this->data;
+        $manager = $this->em;
+
+        $tokenArr = $this->decodeLoginToken($loginToken);
+        $userRepo = $manager->getRepository('SMUserBundle:User');
+
+        $user = $userRepo->findOneBy(array('email' => $tokenArr[2]));
+
+        if (!$user) {
+            $data['message'] = $this->translator->trans(
+                        'Not Email %email% !', array(
+                            '%email%' => $tokenArr[2],
+                        ), 'messages'
+                    );
+        } else {
+
+            $user->setBirthday($newDataUser['birthday']);
+            $user->setFirstname($newDataUser['firstname']);
+            $user->setFacebookId($newDataUser['facebookId']);
+            $user->setHeight($newDataUser['height']);
+            $user->setLastname($newDataUser['lastname']);
+            $user->setSex($newDataUser['sex']);
+            $user->setWeight($newDataUser['weight']);
+
+            if ($newDataUser['avatar']) {
+                $user->setAvatar($newDataUser['avatar']);
+                $user->upload();
+            }
+
+            $manager->persist($user);
+
+            try {
+                $manager->flush();
+                $data['status'] = TRUE;
+                $data['message'] = $this->translator->trans(
+                    'Update User Info success', array(), 'messages'
+                );
+            } catch (Doctrine\DBAL\DBALException $ex) {
+                $data['message'] = $ex->getMessage();
+            }
+        }
+        return $data;
+    }
+
+    /**
+     * Get error message
+     *
+     * @param \Symfony\Component\Form\Form $form
+     *
+     * @return Array
+     */
+    public function getErrorMessages(\Symfony\Component\Form\Form $form)
+    {
+        $errors = array();
+
+        foreach ($form->getErrors() as $key => $error) {
+            if ($form->isRoot()) {
+                $errors['#'][] = $error->getMessage();
+            } else {
+                $errors[] = $error->getMessage();
+            }
+        }
+
+        foreach ($form->all() as $child) {
+            if (!$child->isValid()) {
+                $errors[$child->getName()] = $this->getErrorMessages($child);
+            }
+        }
+
+        return $errors;
+    }
+
+    public function changeArraytoString($errors)
+    {
+        $message = '';
+        $data = $this->data;
+        foreach ($errors as $key => $value) {
+
+            if (is_array($value)) {
+
+                $message .= ' (' . $key . '):';
+                foreach ($value as $subKey => $subValue) {
+                    $message .= '(' . $subValue . ')';
+                }
+            } else {
+                $message .= ' (' . $key . '):(' . $value . ')';
+            }
+            $data['check_email'] = FALSE;
+            if (strpos($message, 'sm_email_exit')) {
+                $data['message'] = $this->translator->trans(
+                    'email is ready, please enter another email', array(), 'messages'
+                );
+                $data['check_email'] = TRUE;
+            } else {
+                $data['message'] = $message;
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Set User Setting
+     *
+     * @param array $dataRequest
+     *
+     * @return Array
+     */
+    public function setUserSetting($dataRequest)
+    {
+        $data = $this->data;
+
+        $dataToken = explode("[___]", base64_decode($dataRequest['login_token']));
+
+        if (isset($dataToken[3]) && $dataToken[3] === 'ROLE_API') {
+
+            $user = $this->em->getReference(
+                'SMUserBundle:User', $dataToken[0]
+            );
+
+            if (!$statistic = $user->getStatistic()) {
+                $statistic = new StatisticUser();
+            }
+
+            try {
+
+                $statistic->setSetting(array(
+                    'general' => $dataRequest['general'],
+                    'news' => $dataRequest['news'],
+                    'other' => $dataRequest['other'],
+                ));
+
+                $user->setStatistic($statistic);
+
+                $this->em->flush();
+
+                $data['status'] = TRUE;
+                $data['message'] = $this->translator->trans(
+                    'Save success', array(), 'messages'
+                );
+            } catch (Exception $exc) {
+                $data['message'] = $exc->getTraceAsString();
+            }
+        } else {
+            $data['message'] = $this->translator->trans(
+                'User not Unauthorized', array(), 'messages'
+            );
+        }
+
+        return $data;
+    }
+
+    /**
+     * Get User Setting
+     *
+     * @param string $loginToken
+     *
+     * @return Array
+     */
+    public function getUserSetting($loginToken)
+    {
+        $data = $this->data;
+
+        $dataToken = explode("[___]", base64_decode($loginToken));
+
+        if (isset($dataToken[3]) && $dataToken[3] === 'ROLE_API') {
+
+            $user = $this->em->getReference(
+                'SMUserBundle:User', $dataToken[0]
+            );
+
+            $data['status'] = TRUE;
+            $data['message'] = $this->translator->trans(
+                'User Setting', array(), 'messages'
+            );
+
+            $data['data'] = ($statistic = $user->getStatistic()) ?
+                $statistic->getSetting() :
+                array(
+                "general" => "1",
+                "news" => "1",
+                "other" => "1",
+                )
+            ;
+        } else {
+            $data['message'] = $this->translator->trans(
+                'User not Unauthorized', array(), 'messages'
+            );
+        }
+
+        return $data;
+    }
+
+    /**
+     * Get Statistic App.
+     *
+     * @param string $loginToken
+     * @param string $fbAccessToken
+     *
+     * @return Array
+     */
+    public function getUserRanking($loginToken, $fbAccessToken)
+    {
+        $data = $this->data;
+
+        $dataToken = explode("[___]", base64_decode($loginToken));
+
+        if (isset($dataToken[3]) && $dataToken[3] === 'ROLE_API') {
+
+            $user = $this->em->getReference(
+                'SMUserBundle:User', $dataToken[0]
+            );
+            $fbService = $this->container->get('sm_admin.facebook');
+            $appId = $this->container->getParameter('appId');
+            $secret = $this->container->getParameter('appSecret');
+            $userFBArray = $fbService->getOwnerFBInfo($appId, $secret, $fbAccessToken);
+            $user->setFacebookId($userFBArray['id']);
+            $this->em->persist($user);
+            $this->em->flush();
+
+            $myRanking = array();
+            $myRanking = array(
+                'facebookId' => $userFBArray['id'],
+                'avatar' => $user->getWebPath(),
+                'firstname' => $user->getFirstname(),
+                'lastname' => $user->getLastname(),
+                'km' => $user->getStatistic()->getKm(),
+            );
+
+            $result = $fbService->getUserRank($appId, $secret, $fbAccessToken);
+            if (count($result)) {
+                $fbUserArr = array();
+                foreach ($result as $fbUser) {
+                    $fbUserArr[] = $fbUser->id;
+                }
+                $fbUserArr[] = $myRanking['facebookId'];
+
+                $userRepo = $this->em->getRepository('SMUserBundle:User');
+                $rankingList = $userRepo->getRanking($fbUserArr);
+
+                $rank = 1;
+                $firstUser = array_slice($rankingList, 0, 1);
+                $firstKmValue = $firstUser[0]['km'];
+                $avatarDir = $this->container->getParameter('avatar_dir');
+                foreach ($rankingList as $key => $user) {
+                    $rankingList[$key]['avatar'] = $avatarDir . $rankingList[$key]['avatar'];
+                    if ($user['km'] === $firstKmValue) {
+                        $rankingList[$key]['rank'] = $rank;
+                    } else {
+                        $rankingList[$key]['rank'] = ++$rank;
+                        $firstKmValue = $user['km'];
+                    }
+
+                    if ($user['facebookId'] === $myRanking['facebookId']) {
+                        $rankingList[$key]['isMy'] = true;
+                        $myRanking['rank'] = $rank;
+                    } else {
+                        $rankingList[$key]['isMy'] = false;
+                    }
+                }
+
+                array_unshift($rankingList, $myRanking);
+            } else {
+                $rankingList = array();
+            }
+
+            $data['status'] = TRUE;
+            $data['message'] = $this->translator->trans(
+                'User Ranking', array(), 'messages'
+            );
+
+            $data['data'] = $rankingList;
+            ;
+        } else {
+            $data['message'] = $this->translator->trans(
+                'User not Unauthorized', array(), 'messages'
+            );
+        }
+
+        return $data;
+    }
+
+    /**
+     * Get Statistic App.
+     *
+     * @param string $loginToken
+     * @param string $accessTokenFB
+     *
+     * @return Array
+     */
+    public function getDummyUserRanking($loginToken, $accessTokenFB)
+    {
+        $data = $this->data;
+
+        $dataToken = explode("[___]", base64_decode($loginToken));
+
+        if (isset($dataToken[3]) && $dataToken[3] === 'ROLE_API') {
+
+            $user = $this->em->getReference(
+                'SMUserBundle:User', $dataToken[0]
+            );
+
+            $listRanking = array();
+            $listRanking[] = array(
+                'avatar' => $user->getWebPath(),
+                'firstname' => $user->getFirstname(),
+                'lastname' => $user->getLastname(),
+                'km' => $user->getStatistic()->getKm(),
+                'rank' => '12',
+            );
+
+            for ($i = 1; $i <= 25; $i++) {
+
+                if ($i != 12) {
+                    $km = $i;
+                    if ($i < 12) {
+                        $km = $user->getStatistic()->getKm() + $i;
+                    }
+
+                    $listRanking[] = array(
+                        'avatar' => '',
+                        'firstname' => 'fn' . $i,
+                        'lastname' => 'ln' . $i,
+                        'km' => $km,
+                        'rank' => $i,
+                    );
+                }
+            }
+
+
+            $data['status'] = TRUE;
+            $data['message'] = $this->translator->trans(
+                'User Ranking', array(), 'messages'
+            );
+
+            $data['data'] = $listRanking;
+            ;
+        } else {
+            $data['message'] = $this->translator->trans(
+                'User not Unauthorized', array(), 'messages'
+            );
+        }
+
+        return $data;
+    }
+
+}

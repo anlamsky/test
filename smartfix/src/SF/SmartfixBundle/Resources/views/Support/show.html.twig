@@ -1,0 +1,76 @@
+{% extends '::base.html.twig' %}
+
+{% block body -%}
+    <h1>Support</h1>
+
+    <table class="record_properties">
+        <tbody>
+            <tr>
+                <th>Id</th>
+                <td>{{ entity.id }}</td>
+            </tr>
+            <tr>
+                <th>Number</th>
+                <td>{{ entity.number }}</td>
+            </tr>
+            <tr>
+                <th>Serviceid</th>
+                <td>{{ entity.serviceId }}</td>
+            </tr>
+            <tr>
+                <th>Streetname</th>
+                <td>{{ entity.streetName }}</td>
+            </tr>
+            <tr>
+                <th>Postcost</th>
+                <td>{{ entity.postCost }}</td>
+            </tr>
+            <tr>
+                <th>City</th>
+                <td>{{ entity.city }}</td>
+            </tr>
+            <tr>
+                <th>Infomaition</th>
+                <td>{{ entity.infomaition }}</td>
+            </tr>
+            <tr>
+                <th>Date</th>
+                <td>{{ entity.date|date('Y-m-d H:i:s') }}</td>
+            </tr>
+            <tr>
+                <th>Timeslot</th>
+                <td>{{ entity.timeSlot }}</td>
+            </tr>
+            <tr>
+                <th>Datecreate</th>
+                <td>{{ entity.dateCreate|date('Y-m-d H:i:s') }}</td>
+            </tr>
+            <tr>
+                <th>Ccnumber</th>
+                <td>{{ entity.ccNumber }}</td>
+            </tr>
+            <tr>
+                <th>Exp</th>
+                <td>{{ entity.exp|date('Y-m-d H:i:s') }}</td>
+            </tr>
+            <tr>
+                <th>Num</th>
+                <td>{{ entity.num }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+        <ul class="record_actions">
+    <li>
+        <a href="{{ path('support') }}">
+            Back to the list
+        </a>
+    </li>
+    <li>
+        <a href="{{ path('support_edit', { 'id': entity.id }) }}">
+            Edit
+        </a>
+    </li>
+    <li>{{ form(delete_form) }}</li>
+</ul>
+{% endblock %}

@@ -1,0 +1,39 @@
+SF\SmartfixBundle\Entity\Review:
+    type: entity
+    table: null
+    repositoryClass: SF\SmartfixBundle\Entity\ReviewRepository
+    id:
+        id:
+            type: integer
+            id: true
+            generator:
+                strategy: AUTO
+    fields:
+        assId:
+            type: integer
+            column: ass_id
+        clientId:
+            type: integer
+            column: client_id
+        assType:
+            type: integer
+            column: ass_type
+        rating:
+            type: integer
+        onTime:
+            type: integer
+            column: on_time
+        proFix:
+            type: integer
+            column: pro_fix
+        countesy:
+            type: integer
+        clarityOrExp:
+            type: integer
+            column: clarity_or_exp
+        comment:
+            type: text
+        dateCreate:
+            type: datetime
+            column: date_create
+    lifecycleCallbacks: {  }

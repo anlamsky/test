@@ -1,0 +1,57 @@
+{% extends '::base.html.twig' %}
+
+{% block body -%}
+    <h1>Review list</h1>
+
+    <table class="records_list">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Assid</th>
+                <th>Clientid</th>
+                <th>Rating</th>
+                <th>Ontime</th>
+                <th>Profix</th>
+                <th>Countesy</th>
+                <th>Clarityorexp</th>
+                <th>Comment</th>
+                <th>Datecreate</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for entity in entities %}
+            <tr>
+                <td><a href="{{ path('review_show', { 'id': entity.id }) }}">{{ entity.id }}</a></td>
+                <td>{{ entity.assId }}</td>
+                <td>{{ entity.clientId }}</td>
+                <td>{{ entity.rating }}</td>
+                <td>{{ entity.onTime }}</td>
+                <td>{{ entity.proFix }}</td>
+                <td>{{ entity.countesy }}</td>
+                <td>{{ entity.clarityOrExp }}</td>
+                <td>{{ entity.comment }}</td>
+                <td>{% if entity.dateCreate %}{{ entity.dateCreate|date('Y-m-d H:i:s') }}{% endif %}</td>
+                <td>
+                <ul>
+                    <li>
+                        <a href="{{ path('review_show', { 'id': entity.id }) }}">show</a>
+                    </li>
+                    <li>
+                        <a href="{{ path('review_edit', { 'id': entity.id }) }}">edit</a>
+                    </li>
+                </ul>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+        <ul>
+        <li>
+            <a href="{{ path('review_new') }}">
+                Create a new entry
+            </a>
+        </li>
+    </ul>
+    {% endblock %}

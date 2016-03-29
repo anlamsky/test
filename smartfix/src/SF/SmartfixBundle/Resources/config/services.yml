@@ -1,0 +1,27 @@
+parameters:
+    sf.smartfix.clientmanager: SF\SmartfixBundle\Manager\ClientManager
+    sf.smartfix.servicemanager: SF\SmartfixBundle\Manager\ServiceManager
+    sf.smartfix.supportmanager: SF\SmartfixBundle\Manager\SupportManager
+    sf.smartfix.reviewmanager: SF\SmartfixBundle\Manager\ReviewManager
+#    admin.menumanager: StudentBundle\Manager\MenuBuilder
+services:
+#    smartfix.example:
+#        class: SmartfixBundle\Example
+#        arguments: [@service_id, "plain_value", %parameter%]
+    
+    sf_smartfix.client.manager:
+            class: %sf.smartfix.clientmanager%
+    #        arguments: [@doctrine.orm.entity_manager, @service_container, @translator, @router]
+            arguments: [@doctrine.orm.entity_manager, @service_container]
+    sf_smartfix.service.manager:
+            class: %sf.smartfix.servicemanager%
+    #        arguments: [@doctrine.orm.entity_manager, @service_container, @translator, @router]
+            arguments: [@doctrine.orm.entity_manager, @service_container]
+    sf_smartfix.support.manager:
+            class: %sf.smartfix.supportmanager%
+    #        arguments: [@doctrine.orm.entity_manager, @service_container, @translator, @router]
+            arguments: [@doctrine.orm.entity_manager, @service_container]
+    sf_smartfix.review.manager:
+            class: %sf.smartfix.reviewmanager%
+    #        arguments: [@doctrine.orm.entity_manager, @service_container, @translator, @router]
+            arguments: [@doctrine.orm.entity_manager, @service_container]

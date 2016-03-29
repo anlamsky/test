@@ -1,0 +1,30 @@
+review:
+    path:     /
+    defaults: { _controller: "SmartfixBundle:Review:index" }
+
+review_show:
+    path:     /{id}/show
+    defaults: { _controller: "SmartfixBundle:Review:show" }
+
+review_new:
+    path:     /new
+    defaults: { _controller: "SmartfixBundle:Review:new" }
+
+review_create:
+    path:     /create
+    defaults: { _controller: "SmartfixBundle:Review:create" }
+    requirements: { _method: post }
+
+review_edit:
+    path:     /{id}/edit
+    defaults: { _controller: "SmartfixBundle:Review:edit" }
+
+review_update:
+    path:     /{id}/update
+    defaults: { _controller: "SmartfixBundle:Review:update" }
+    requirements: { _method: post|put }
+
+review_delete:
+    path:     /{id}/delete
+    defaults: { _controller: "SmartfixBundle:Review:delete" }
+    requirements: { _method: post|delete }

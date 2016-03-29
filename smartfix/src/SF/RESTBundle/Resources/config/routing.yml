@@ -1,0 +1,59 @@
+# routes.yml
+add_client:
+    pattern:  /client/create
+    defaults: { _controller: RESTBundle:ClientRest:signUp , _format: ~ }
+    requirements:
+        _method: POST|PUT
+        
+login_client:
+    pattern:  /client/login
+    defaults: { _controller: RESTBundle:ClientRest:signIn , _format: ~ }
+    requirements:
+        _method: POST|PUT
+
+forgot_pass_client:
+    pattern:  /client/forgotpass
+    defaults: { _controller: RESTBundle:ClientRest:clientForgotPassword , _format: ~ }
+    requirements:
+        _method: POST|PUT
+        
+upload_avatar_client:
+    pattern:  /client/avatar
+    defaults: { _controller: RESTBundle:ClientRest:clientUploadAvatar , _format: ~ }
+    requirements:
+        _method: POST|PUT
+
+list_service:
+    pattern:  /service/list
+    defaults: { _controller: RESTBundle:ServiceRest:getListService , _format: ~ }
+    requirements:
+        _method: GET|POST
+
+add_service:
+    pattern:  /service/create
+    defaults: { _controller: RESTBundle:ServiceRest:createService , _format: ~ }
+    requirements:
+        _method: POST|PUT
+
+add_support:
+    pattern:  /support/create
+    defaults: { _controller: RESTBundle:SupportRest:createSupport , _format: ~ }
+    requirements:
+        _method: POST|PUT
+
+update_support:
+    pattern:  /support/update
+    defaults: { _controller: RESTBundle:SupportRest:updateSupport , _format: ~ }
+    requirements:
+        _method: POST|PUT
+list_support:
+    pattern:  /support/list
+    defaults: { _controller: RESTBundle:SupportRest:listSupport , _format: ~ }
+    requirements:
+        _method: POST|GET
+        
+add_review:
+    pattern:  /review/create
+    defaults: { _controller: RESTBundle:ReviewRest:createReview , _format: ~ }
+    requirements:
+        _method: POST|PUT
